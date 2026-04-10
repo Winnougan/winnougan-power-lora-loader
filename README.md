@@ -15,5 +15,8 @@ Features:
 💡 Built for speed, simplicity, and maximum creative freedom
 
 Make your LoRA workflow feel less like setup… and more like play 🎮✨
+Screenshots of the lora in action. Just start typing the lora name and it'll populate for you.
+You can right-click on your mouse to activate the widget to move up, move down, toggle on or off or remove each lora
 <img width="571" height="380" alt="2026-04-10_12-27-16" src="https://github.com/user-attachments/assets/383f36de-bcf2-4d3f-9c0c-ab7068e5de8d" />
 <img width="580" height="459" alt="2026-04-10_12-26-47" src="https://github.com/user-attachments/assets/41fce542-2c49-4e11-89e0-d1416f37e123" />
+<img width="593" height="745" alt="2026-04-10_12-30-24" src="https://github.com/user-attachments/assets/0480ecce-9070-40e7-a109-f98b263fd137" />
