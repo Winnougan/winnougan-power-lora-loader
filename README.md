@@ -15,3 +15,5 @@ Features:
 💡 Built for speed, simplicity, and maximum creative freedom
 
 Make your LoRA workflow feel less like setup… and more like play 🎮✨
+<img width="571" height="380" alt="2026-04-10_12-27-16" src="https://github.com/user-attachments/assets/383f36de-bcf2-4d3f-9c0c-ab7068e5de8d" />
+<img width="580" height="459" alt="2026-04-10_12-26-47" src="https://github.com/user-attachments/assets/41fce542-2c49-4e11-89e0-d1416f37e123" />
