@@ -1,4 +1,6 @@
 Introducing Winnougan's Nodes Suite:
+<img width="1024" height="1024" alt="Klein9b_00032_" src="https://github.com/user-attachments/assets/09a02c23-2700-4df2-80e4-63e9dad697cd" />
+
 1. Power Lora Loader Stack
 2. Resolution Picker for HD image generation
 3. Resolution Picker for Wan and LTX video generation
