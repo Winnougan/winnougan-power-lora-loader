@@ -1,4 +1,7 @@
-Winnougan’s Lora Power Loader for ComfyUI ⚡🎛️
+Introducing Winnougan's Nodes Suite:
+1. Power Lora Loader Stack
+2. Resolution Picker for HD image generation
+3. Resolution Picker for Wan and LTX video generation
 
 Supercharge your workflow inside ComfyUI with the Winnougan Lora Power Loader — a fast, flexible, and intuitive way to manage all your favorite LoRAs in one place.
 
