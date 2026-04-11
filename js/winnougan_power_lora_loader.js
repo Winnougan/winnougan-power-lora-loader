@@ -90,9 +90,7 @@ function showLoraSearchDialog(currentValue, onSelect) {
     selectedIndex = -1;
 
     const q = filter.trim().toLowerCase();
-    const filtered = q
-      ? allLoras.filter(l => l.toLowerCase().includes(q))
-      : allLoras;
+    const filtered = q ? allLoras.filter(l => l.toLowerCase().includes(q)) : allLoras;
 
     status.textContent = `${filtered.length} of ${allLoras.length} loras`;
 
@@ -108,23 +106,15 @@ function showLoraSearchDialog(currentValue, onSelect) {
 
     filtered.forEach((lora, i) => {
       const row = document.createElement("div");
-      const loraName = lora.split(/[\\/]/).pop();
-      const loraPath = lora.includes("/") || lora.includes("\\")
-        ? lora.substring(0, lora.lastIndexOf(loraName))
-        : "";
-
-      row.innerHTML = q
-        ? highlightMatch(lora, q)
-        : `<span style="color:#ccc">${escapeHtml(lora)}</span>`;
-
+      const q2 = filter.trim().toLowerCase();
+      row.innerHTML = q2 ? highlightMatch(lora, q2) : `<span style="color:#ccc">${escapeHtml(lora)}</span>`;
       Object.assign(row.style, {
         padding: "7px 10px", cursor: "pointer", fontSize: "13px",
         borderBottom: "1px solid #1e1e1e", userSelect: "none",
         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       });
-
       row.addEventListener("mouseenter", () => setSelected(i));
-      row.addEventListener("click", () => { choose(filtered[i]); });
+      row.addEventListener("click", () => choose(filtered[i]));
       list.appendChild(row);
       rows.push({ el: row, value: filtered[i] });
     });
@@ -137,8 +127,8 @@ function showLoraSearchDialog(currentValue, onSelect) {
     const idx = text.toLowerCase().indexOf(q);
     if (idx === -1) return `<span style="color:#ccc">${escaped}</span>`;
     const before = escapeHtml(text.slice(0, idx));
-    const match = escapeHtml(text.slice(idx, idx + q.length));
-    const after = escapeHtml(text.slice(idx + q.length));
+    const match  = escapeHtml(text.slice(idx, idx + q.length));
+    const after  = escapeHtml(text.slice(idx + q.length));
     return `<span style="color:#ccc">${before}<span style="color:#7dffb3;font-weight:bold">${match}</span>${after}</span>`;
   }
 
@@ -147,48 +137,21 @@ function showLoraSearchDialog(currentValue, onSelect) {
   }
 
   function setSelected(i) {
-    rows.forEach((r, ri) => {
-      r.el.style.background = ri === i ? "#2a4a3a" : "transparent";
-    });
+    rows.forEach((r, ri) => { r.el.style.background = ri === i ? "#2a4a3a" : "transparent"; });
     selectedIndex = i;
-    if (rows[i]) {
-      rows[i].el.scrollIntoView({ block: "nearest" });
-    }
+    if (rows[i]) rows[i].el.scrollIntoView({ block: "nearest" });
   }
 
-  function choose(value) {
-    overlay.remove();
-    onSelect(value);
-  }
-
-  function close() {
-    overlay.remove();
-  }
+  function choose(value) { overlay.remove(); onSelect(value); }
 
   input.addEventListener("input", () => renderList(input.value));
-
   input.addEventListener("keydown", e => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelected(Math.min(selectedIndex + 1, rows.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelected(Math.max(selectedIndex - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (selectedIndex >= 0 && rows[selectedIndex]) {
-        choose(rows[selectedIndex].value);
-      } else if (input.value.trim()) {
-        choose(input.value.trim());
-      }
-    } else if (e.key === "Escape") {
-      close();
-    }
+    if      (e.key === "ArrowDown") { e.preventDefault(); setSelected(Math.min(selectedIndex + 1, rows.length - 1)); }
+    else if (e.key === "ArrowUp")   { e.preventDefault(); setSelected(Math.max(selectedIndex - 1, 0)); }
+    else if (e.key === "Enter")     { e.preventDefault(); if (selectedIndex >= 0 && rows[selectedIndex]) choose(rows[selectedIndex].value); else if (input.value.trim()) choose(input.value.trim()); }
+    else if (e.key === "Escape")    { overlay.remove(); }
   });
-
-  overlay.addEventListener("click", e => {
-    if (e.target === overlay) close();
-  });
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
 
   getLoras().then(loras => {
     allLoras = loras;
@@ -198,17 +161,97 @@ function showLoraSearchDialog(currentValue, onSelect) {
   }).catch(() => {
     status.textContent = "Could not load lora list — press Enter to use typed name";
     input.focus();
-    input.addEventListener("keydown", e => {
-      if (e.key === "Enter" && input.value.trim()) choose(input.value.trim());
-    });
   });
+}
+
+// ── Strength input dialog ─────────────────────────────────────────────────────
+
+function showStrengthDialog(currentValue, onConfirm) {
+  const existing = document.getElementById("winnougan-strength-overlay");
+  if (existing) existing.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "winnougan-strength-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed", inset: "0", zIndex: "9999",
+    background: "rgba(0,0,0,0.45)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  });
+
+  const dialog = document.createElement("div");
+  Object.assign(dialog.style, {
+    background: "#1a1a1a", border: "1px solid #444",
+    borderRadius: "8px", padding: "16px",
+    width: "260px",
+    display: "flex", flexDirection: "column", gap: "10px",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+  });
+
+  const title = document.createElement("div");
+  title.textContent = "Set Strength";
+  Object.assign(title.style, {
+    color: "#ccc", fontSize: "12px", fontWeight: "bold",
+    textTransform: "uppercase", letterSpacing: "0.08em",
+  });
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.01";
+  input.value = Number(currentValue).toFixed(2);
+  Object.assign(input.style, {
+    background: "#111", border: "1px solid #555", borderRadius: "5px",
+    color: "#eee", fontSize: "18px", padding: "8px 10px",
+    outline: "none", width: "100%", boxSizing: "border-box",
+    textAlign: "center", fontFamily: "monospace",
+  });
+
+  const btnRow = document.createElement("div");
+  Object.assign(btnRow.style, { display: "flex", gap: "8px" });
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "Cancel";
+  Object.assign(cancelBtn.style, {
+    flex: "1", padding: "7px", background: "#222", border: "1px solid #444",
+    borderRadius: "5px", color: "#888", cursor: "pointer", fontSize: "13px",
+  });
+
+  const confirmBtn = document.createElement("button");
+  confirmBtn.textContent = "Set";
+  Object.assign(confirmBtn.style, {
+    flex: "1", padding: "7px", background: "#2a5a2a", border: "1px solid #4aaf4a",
+    borderRadius: "5px", color: "#cfffcf", cursor: "pointer", fontSize: "13px",
+    fontWeight: "bold",
+  });
+
+  btnRow.appendChild(cancelBtn);
+  btnRow.appendChild(confirmBtn);
+  dialog.appendChild(title);
+  dialog.appendChild(input);
+  dialog.appendChild(btnRow);
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+
+  function confirm() {
+    const v = parseFloat(input.value);
+    if (!isNaN(v)) onConfirm(Math.round(v * 100) / 100);
+    overlay.remove();
+  }
+
+  confirmBtn.addEventListener("click", confirm);
+  cancelBtn.addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter")  confirm();
+    if (e.key === "Escape") overlay.remove();
+  });
+
+  input.focus();
+  input.select();
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function isLowQuality() {
-  return app.canvas.ds.scale < 0.6;
-}
+function isLowQuality() { return app.canvas.ds.scale < 0.6; }
 
 function drawRoundedRect(ctx, x, y, w, h, r = 5) {
   ctx.beginPath();
@@ -223,7 +266,7 @@ function drawRoundedRect(ctx, x, y, w, h, r = 5) {
 function drawToggle(ctx, x, y, h, value) {
   const tw = 28, th = h * 0.55;
   const tx = x + 4, ty = y + (h - th) / 2;
-  const r = th / 2;
+  const r  = th / 2;
   ctx.beginPath();
   ctx.roundRect(tx, ty, tw, th, r);
   ctx.fillStyle = value ? "#4a9f5f" : "#555";
@@ -241,9 +284,9 @@ function drawArrowButton(ctx, x, y, w, h, dir) {
   ctx.roundRect(x, y + h * 0.15, w, h * 0.7, 3);
   ctx.fillStyle = LiteGraph.WIDGET_BGCOLOR ?? "#333";
   ctx.fill();
-  ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR ?? "#ccc";
-  ctx.font = `${h * 0.45}px sans-serif`;
-  ctx.textAlign = "center";
+  ctx.fillStyle    = LiteGraph.WIDGET_TEXT_COLOR ?? "#ccc";
+  ctx.font         = `${h * 0.45}px sans-serif`;
+  ctx.textAlign    = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(dir < 0 ? "◀" : "▶", x + w / 2, y + h / 2);
   return [x, w];
@@ -256,9 +299,9 @@ function drawStrengthWidget(ctx, posX, posY, h, value, direction = -1) {
   drawArrowButton(ctx, startX, posY, bw, h, -1);
   ctx.fillStyle = LiteGraph.WIDGET_BGCOLOR ?? "#333";
   ctx.fillRect(startX + bw, posY + h * 0.15, vw, h * 0.7);
-  ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR ?? "#eee";
-  ctx.font = `bold ${h * 0.42}px monospace`;
-  ctx.textAlign = "center";
+  ctx.fillStyle    = LiteGraph.WIDGET_TEXT_COLOR ?? "#eee";
+  ctx.font         = `bold ${h * 0.42}px monospace`;
+  ctx.textAlign    = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(Number(value).toFixed(2), startX + bw + vw / 2, posY + h / 2);
   drawArrowButton(ctx, startX + bw + vw, posY, bw, h, 1);
@@ -267,19 +310,66 @@ function drawStrengthWidget(ctx, posX, posY, h, value, direction = -1) {
 
 function fitString(ctx, str, maxWidth) {
   if (ctx.measureText(str).width <= maxWidth) return str;
-  while (str.length > 1 && ctx.measureText(str + "…").width > maxWidth) {
-    str = str.slice(0, -1);
-  }
+  while (str.length > 1 && ctx.measureText(str + "…").width > maxWidth) str = str.slice(0, -1);
   return str + "…";
 }
 
-// ── Widget: individual lora row ───────────────────────────────────────────────
+// ── Global toggle header widget ───────────────────────────────────────────────
+
+class GlobalToggleWidget {
+  constructor() {
+    this.name = "__global_toggle__";
+    this.type = "custom";
+    this.last_y = 0;
+    this.hitArea = null;
+  }
+
+  computeSize() { return [220, 24]; }  // ← tighter height
+
+  draw(ctx, node, widgetWidth, posY, height) {
+    this.last_y = posY;
+    if (isLowQuality()) return;
+
+    const margin = 10;
+    const midY   = posY + height / 2;
+    const state  = node._allLorasOn();
+
+    ctx.save();
+
+    // Toggle switch
+    const [tX, tW] = drawToggle(ctx, margin, posY, height, state);
+    this.hitArea = { x: tX, y: posY, w: tW + 4, h: height };
+
+    // Label
+    ctx.fillStyle    = "#5a8a5a";
+    ctx.font         = `bold 10px sans-serif`;
+    ctx.textAlign    = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("TOGGLE ALL", margin + tW + 6, midY);
+
+    ctx.restore();
+  }
+
+  mouse(event, pos, node) {
+    if (event.type !== "pointerdown" && event.type !== "mousedown") return false;
+    const [mx, my] = pos;
+    const r = this.hitArea;
+    if (r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+      node._toggleAllLoras();
+      node.setDirtyCanvas(true);
+      return true;
+    }
+    return false;
+  }
+}
+
+// ── Individual lora row widget ────────────────────────────────────────────────
 
 class PowerLoraWidget {
   constructor(name) {
-    this.name = name;
-    this.type = "custom";
-    this.y = 0;
+    this.name  = name;
+    this.type  = "custom";
+    this.y     = 0;
     this.last_y = 0;
     this._value = { on: true, lora: null, strength: 1.0, strengthTwo: null };
     this.hitAreas = {};
@@ -289,24 +379,20 @@ class PowerLoraWidget {
     this.dragIsTwo = false;
   }
 
-  get value() { return this._value; }
-  set value(v) {
-    this._value = (v && typeof v === "object")
-      ? v
-      : { on: true, lora: null, strength: 1.0, strengthTwo: null };
-  }
+  get value()  { return this._value; }
+  set value(v) { this._value = (v && typeof v === "object") ? v : { on: true, lora: null, strength: 1.0, strengthTwo: null }; }
 
-  computeSize() { return [220, 30]; }
+  computeSize() { return [220, 26]; }  // ← tighter row height
 
   draw(ctx, node, widgetWidth, posY, height) {
     this.last_y = posY;
     const margin = 10, im = margin * 0.33;
-    const lowQ = isLowQuality();
-    const midY = posY + height / 2;
+    const lowQ   = isLowQuality();
+    const midY   = posY + height / 2;
     const showSep = node.properties?.[PROP_SHOW_STRENGTHS] === PROP_VALUE_SEPARATE;
 
     ctx.save();
-    drawRoundedRect(ctx, margin, posY + 2, widgetWidth - margin * 2, height - 4);
+    drawRoundedRect(ctx, margin, posY + 1, widgetWidth - margin * 2, height - 2);  // ← tighter inset
 
     const [tX, tW] = drawToggle(ctx, margin + 4, posY, height, this._value.on);
     this.hitAreas.toggle = { x: tX, y: posY, w: tW + 4, h: height };
@@ -315,7 +401,7 @@ class PowerLoraWidget {
     if (lowQ) { ctx.restore(); return; }
 
     ctx.globalAlpha = this._value.on ? 1 : 0.45;
-    ctx.fillStyle = LiteGraph.WIDGET_TEXT_COLOR ?? "#ccc";
+    ctx.fillStyle   = LiteGraph.WIDGET_TEXT_COLOR ?? "#ccc";
     ctx.textBaseline = "middle";
 
     let rposX = widgetWidth - margin - im;
@@ -332,8 +418,8 @@ class PowerLoraWidget {
 
     const loraW = rposX - posX - im;
     ctx.textAlign = "left";
-    ctx.font = `${height * 0.4}px sans-serif`;
-    const label = this._value.lora || "None";
+    ctx.font      = `${height * 0.4}px sans-serif`;
+    const label   = this._value.lora || "None";
     ctx.fillText(fitString(ctx, label, loraW), posX, midY);
     this.hitAreas.lora = { x: posX, y: posY, w: loraW, h: height };
 
@@ -350,28 +436,42 @@ class PowerLoraWidget {
         node.setDirtyCanvas(true);
         return true;
       }
+
+      // Strength — arrow click or value click (manual entry)
       if (inRect(this.hitAreas.strength)) {
-        const bw = 18, vw = 50;
+        const bw  = 18, vw = 50;
         const relX = mx - this.hitAreas.strength.x;
-        if (relX < bw) { this.stepStrength(-1, false); node.setDirtyCanvas(true); return true; }
-        if (relX > bw + vw) { this.stepStrength(1, false); node.setDirtyCanvas(true); return true; }
-        this.draggingStrength = true;
-        this.dragIsTwo = false;
-        this.dragStartX = mx;
-        this.dragStartVal = this._value.strength ?? 1;
+        if (relX < bw) {
+          this.stepStrength(-1, false); node.setDirtyCanvas(true); return true;
+        }
+        if (relX > bw + vw) {
+          this.stepStrength(1, false); node.setDirtyCanvas(true); return true;
+        }
+        // Click on value box → manual entry
+        showStrengthDialog(this._value.strength ?? 1, val => {
+          this._value.strength = val;
+          node.setDirtyCanvas(true);
+        });
         return true;
       }
+
       if (inRect(this.hitAreas.strengthTwo)) {
-        const bw = 18, vw = 50;
+        const bw  = 18, vw = 50;
         const relX = mx - this.hitAreas.strengthTwo.x;
-        if (relX < bw) { this.stepStrength(-1, true); node.setDirtyCanvas(true); return true; }
-        if (relX > bw + vw) { this.stepStrength(1, true); node.setDirtyCanvas(true); return true; }
-        this.draggingStrength = true;
-        this.dragIsTwo = true;
-        this.dragStartX = mx;
-        this.dragStartVal = this._value.strengthTwo ?? 1;
+        if (relX < bw) {
+          this.stepStrength(-1, true); node.setDirtyCanvas(true); return true;
+        }
+        if (relX > bw + vw) {
+          this.stepStrength(1, true); node.setDirtyCanvas(true); return true;
+        }
+        // Click on value box → manual entry
+        showStrengthDialog(this._value.strengthTwo ?? 1, val => {
+          this._value.strengthTwo = val;
+          node.setDirtyCanvas(true);
+        });
         return true;
       }
+
       if (inRect(this.hitAreas.lora)) {
         showLoraSearchDialog(this._value.lora, (chosen) => {
           this._value.lora = chosen;
@@ -383,7 +483,7 @@ class PowerLoraWidget {
 
     if ((event.type === "pointermove" || event.type === "mousemove") && this.draggingStrength) {
       const delta = (mx - this.dragStartX) * 0.01;
-      const prop = this.dragIsTwo ? "strengthTwo" : "strength";
+      const prop  = this.dragIsTwo ? "strengthTwo" : "strength";
       this._value[prop] = Math.round((this.dragStartVal + delta) * 100) / 100;
       node.setDirtyCanvas(true);
       return true;
@@ -419,7 +519,7 @@ app.registerExtension({
     const origOnNodeCreated = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
       origOnNodeCreated?.call(this);
-      this.color = "#1a2a1a";
+      this.color   = "#1a2a1a";
       this.bgcolor = "#0f1f0f";
       this._loraCounter = 0;
       this.serialize_widgets = true;
@@ -435,20 +535,38 @@ app.registerExtension({
         this.addInput("clip", "CLIP");
       }
 
-      this.size = [340, 130];
+      // Add global toggle header
+      this.widgets ??= [];
+      this.widgets.push(new GlobalToggleWidget());
+
+      this.size = [340, 100];
     };
 
+    // ── All-loras state helpers ───────────────────────────────────────────────
     nodeType.prototype._loraWidgets = function () {
       return (this.widgets ?? []).filter(w => w.name?.startsWith("lora_"));
     };
 
+    nodeType.prototype._allLorasOn = function () {
+      const loras = this._loraWidgets();
+      if (!loras.length) return false;
+      return loras.every(w => w.value?.on === true);
+    };
+
+    nodeType.prototype._toggleAllLoras = function () {
+      const loras  = this._loraWidgets();
+      const turnOn = !this._allLorasOn();
+      loras.forEach(w => { if (w.value) w.value.on = turnOn; });
+    };
+
+    // ── Add lora row ──────────────────────────────────────────────────────────
     nodeType.prototype.addLoraRow = function (value) {
       this._loraCounter = (this._loraCounter ?? 0) + 1;
       const w = new PowerLoraWidget("lora_" + this._loraCounter);
       if (value) w.value = { on: true, lora: null, strength: 1.0, strengthTwo: null, ...value };
       this.widgets ??= [];
       this.widgets.push(w);
-      this.size[1] = Math.max(130 + this._loraWidgets().length * 34, this.size[1]);
+      this._recalcHeight();
       this.setDirtyCanvas(true, true);
       return w;
     };
@@ -456,8 +574,17 @@ app.registerExtension({
     nodeType.prototype.removeLoraWidget = function (widget) {
       const idx = (this.widgets ?? []).indexOf(widget);
       if (idx !== -1) this.widgets.splice(idx, 1);
-      this.size[1] = Math.max(130 + this._loraWidgets().length * 34, 130);
+      this._recalcHeight();
       this.setDirtyCanvas(true, true);
+    };
+
+    // ── Height calculation — tighter rows ─────────────────────────────────────
+    nodeType.prototype._recalcHeight = function () {
+      const rows   = this._loraWidgets().length;
+      const needed = 60           // title + toggle header
+                   + rows * 30   // ← 30px per row instead of 34
+                   + 40;         // add button
+      this.size[1] = Math.max(needed, this.size[1]);
     };
 
     nodeType.prototype._showAddLoraMenu = function () {
@@ -466,6 +593,7 @@ app.registerExtension({
       });
     };
 
+    // ── Draw foreground ───────────────────────────────────────────────────────
     nodeType.prototype.onDrawForeground = function (ctx) {
       if (this.flags?.collapsed) return;
       const w = this.size[0], h = this.size[1];
@@ -473,37 +601,41 @@ app.registerExtension({
       const btnY = h - btnH - 8;
 
       ctx.save();
-      ctx.fillStyle = "#2a5a2a";
+      ctx.fillStyle   = "#2a5a2a";
       ctx.strokeStyle = "#4aaf4a";
-      ctx.lineWidth = 1;
+      ctx.lineWidth   = 1;
       const bx = margin, bw = w - margin * 2;
       ctx.beginPath();
       ctx.roundRect(bx, btnY, bw, btnH, 5);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = "#ccffcc";
-      ctx.font = `bold ${btnH * 0.46}px sans-serif`;
-      ctx.textAlign = "center";
+      ctx.fillStyle    = "#ccffcc";
+      ctx.font         = `bold ${btnH * 0.46}px sans-serif`;
+      ctx.textAlign    = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("➕ Add Lora", bx + bw / 2, btnY + btnH / 2);
       ctx.restore();
 
       this._addBtnRelY = btnY;
-      this._addBtnH = btnH;
+      this._addBtnH    = btnH;
     };
 
+    // ── Mouse ─────────────────────────────────────────────────────────────────
     nodeType.prototype.onMouseDown = function (event, pos) {
       const [mx, my] = pos;
-      const margin = 10, btnH = this._addBtnH ?? 26;
-      const btnY = this._addBtnRelY ?? (this.size[1] - btnH - 8);
+      const margin   = 10;
+      const btnH     = this._addBtnH ?? 26;
+      const btnY     = this._addBtnRelY ?? (this.size[1] - btnH - 8);
 
+      // Add button
       if (mx >= margin && mx <= this.size[0] - margin && my >= btnY && my <= btnY + btnH) {
         this._showAddLoraMenu();
         return true;
       }
 
-      for (const w of this._loraWidgets()) {
+      // Global toggle header + lora rows
+      for (const w of (this.widgets ?? [])) {
         if (w.mouse && w.mouse(event, pos, this)) return true;
       }
       return false;
@@ -521,6 +653,7 @@ app.registerExtension({
       }
     };
 
+    // ── Right-click menu ──────────────────────────────────────────────────────
     const origGetExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
     nodeType.prototype.getExtraMenuOptions = function (canvas, options) {
       origGetExtraMenuOptions?.call(this, canvas, options);
@@ -533,7 +666,7 @@ app.registerExtension({
       for (let idx = 0; idx < loraWidgets.length; idx++) {
         const widget = loraWidgets[idx];
         const wy = widget.last_y ?? 0;
-        if (localY >= wy && localY <= wy + 32) {
+        if (localY >= wy && localY <= wy + 30) {
           options.push(
             null,
             {
@@ -544,8 +677,7 @@ app.registerExtension({
               content: "⬆️ Move Up",
               disabled: idx === 0,
               callback: () => {
-                const all = this.widgets;
-                const wi = all.indexOf(widget);
+                const all = this.widgets, wi = all.indexOf(widget);
                 if (wi > 0) [all[wi - 1], all[wi]] = [all[wi], all[wi - 1]];
                 this.setDirtyCanvas(true);
               }
@@ -554,8 +686,7 @@ app.registerExtension({
               content: "⬇️ Move Down",
               disabled: idx === loraWidgets.length - 1,
               callback: () => {
-                const all = this.widgets;
-                const wi = all.indexOf(widget);
+                const all = this.widgets, wi = all.indexOf(widget);
                 if (wi < all.length - 1) [all[wi], all[wi + 1]] = [all[wi + 1], all[wi]];
                 this.setDirtyCanvas(true);
               }
@@ -573,42 +704,55 @@ app.registerExtension({
         content: "Show Separate Model & Clip Strengths",
         callback: () => {
           const cur = this.properties[PROP_SHOW_STRENGTHS];
-          this.properties[PROP_SHOW_STRENGTHS] =
-            cur === PROP_VALUE_SEPARATE ? PROP_VALUE_SINGLE : PROP_VALUE_SEPARATE;
+          this.properties[PROP_SHOW_STRENGTHS] = cur === PROP_VALUE_SEPARATE ? PROP_VALUE_SINGLE : PROP_VALUE_SEPARATE;
           for (const w of loraWidgets) {
-            if (this.properties[PROP_SHOW_STRENGTHS] === PROP_VALUE_SEPARATE) {
-              w.value.strengthTwo = w.value.strength;
-            } else {
-              w.value.strengthTwo = null;
-            }
+            w.value.strengthTwo = this.properties[PROP_SHOW_STRENGTHS] === PROP_VALUE_SEPARATE ? w.value.strength : null;
           }
           this.setDirtyCanvas(true);
         }
       });
     };
 
+    // ── Serialize / restore ───────────────────────────────────────────────────
     nodeType.prototype.onSerialize = function (o) {
       o.widgets_values = this._loraWidgets().map(w => w.serialize());
     };
 
     nodeType.prototype.onConfigure = function (o) {
-      const saved = o.widgets_values ?? [];
-      this.widgets = (this.widgets ?? []).filter(w => !w.name?.startsWith("lora_"));
+      // Remove all lora widgets and the global toggle, then rebuild
+      this.widgets = (this.widgets ?? []).filter(
+        w => !w.name?.startsWith("lora_") && w.name !== "__global_toggle__"
+      );
+      // Re-add global toggle at position 0
+      this.widgets.unshift(new GlobalToggleWidget());
       this._loraCounter = 0;
-      for (const v of saved) {
+      for (const v of o.widgets_values ?? []) {
         if (v && typeof v.lora !== "undefined") this.addLoraRow(v);
       }
-      this.size[1] = Math.max(130 + this._loraWidgets().length * 34, this.size[1] ?? 130);
+      this.size[1] = Math.max(
+        60 + this._loraWidgets().length * 30 + 40,
+        this.size[1] ?? 100
+      );
     };
 
+    // ── Custom widget drawing (replaces default widget renderer) ──────────────
     const origOnDrawWidgets = nodeType.prototype.onDrawWidgets;
     nodeType.prototype.onDrawWidgets = function (ctx) {
       origOnDrawWidgets?.call(this, ctx);
-      let posY = LiteGraph.NODE_TITLE_HEIGHT + 6;
-      for (const w of this._loraWidgets()) {
-        w.draw(ctx, this, this.size[0], posY, 28);
-        posY += 32;
+      let posY = LiteGraph.NODE_TITLE_HEIGHT + 4;
+
+      for (const w of (this.widgets ?? [])) {
+        if (w.name === "__global_toggle__" || w.name?.startsWith("lora_")) {
+          const h = w.computeSize()[1];
+          w.draw(ctx, this, this.size[0], posY, h);
+          posY += h + 4;  // ← 4px gap between rows instead of larger spacing
+        }
       }
+    };
+
+    nodeType.prototype.computeSize = function () {
+      const rows = this._loraWidgets().length;
+      return [340, 60 + rows * 30 + 40];
     };
   },
 });
