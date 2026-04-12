@@ -40,6 +40,14 @@ class WinnouganPowerLoraLoader:
     """
     The Winnougan Power Lora Loader is a powerful, flexible node
     to add multiple LoRAs to a model/clip in a single compact node.
+
+    Each lora row in the UI corresponds to a kwarg named lora_N.
+    That kwarg can be either:
+      - A dict  (the normal widget value: {on, lora, strength, ...})
+      - A str   (a filename piped in via a node connection)
+    When a string is received the row's widget strength values still apply,
+    so the node reads them from the companion lora_N_strength / lora_N_on
+    kwargs if present, or falls back to sensible defaults.
     """
 
     NAME = NODE_NAME
@@ -61,27 +69,54 @@ class WinnouganPowerLoraLoader:
     FUNCTION = "load_loras"
 
     def load_loras(self, model=None, clip=None, **kwargs):
-        """Loops over the provided loras in kwargs and applies valid ones."""
+        """Loops over the provided loras in kwargs and applies valid ones.
+
+        Each lora slot can arrive as:
+          • A dict  – the standard widget payload  {on, lora, strength, [strengthTwo]}
+          • A str   – a lora filename wired in from another node; the row is
+                      treated as enabled with strength 1.0 (both model & clip)
+                      unless the widget dict is also present in kwargs under the
+                      same key (which won't happen simultaneously, but is safe).
+        """
         for key, value in kwargs.items():
             key_upper = key.upper()
-            if key_upper.startswith('LORA_') and isinstance(value, dict):
-                if 'on' in value and 'lora' in value and 'strength' in value:
-                    strength_model = value['strength']
-                    strength_clip = value.get('strengthTwo', None)
+            if not key_upper.startswith('LORA_'):
+                continue
 
-                    if clip is None:
-                        if strength_clip is not None and strength_clip != 0:
-                            print(f'[{NODE_NAME}] WARNING: Received clip strength even though no clip supplied!')
-                        strength_clip = 0
-                    else:
-                        strength_clip = strength_clip if strength_clip is not None else strength_model
+            # ── Dict payload (normal widget path) ─────────────────────────────
+            if isinstance(value, dict):
+                if not ('on' in value and 'lora' in value and 'strength' in value):
+                    continue
 
-                    if value['on'] and (strength_model != 0 or strength_clip != 0):
-                        lora = get_lora_by_filename(value['lora'], log_node=NODE_NAME)
-                        if model is not None and lora is not None:
-                            model, clip = LoraLoader().load_lora(
-                                model, clip, lora, strength_model, strength_clip
-                            )
+                strength_model = value['strength']
+                strength_clip  = value.get('strengthTwo', None)
+
+                if clip is None:
+                    if strength_clip is not None and strength_clip != 0:
+                        print(f'[{NODE_NAME}] WARNING: Received clip strength even though no clip supplied!')
+                    strength_clip = 0
+                else:
+                    strength_clip = strength_clip if strength_clip is not None else strength_model
+
+                if value['on'] and (strength_model != 0 or strength_clip != 0):
+                    lora = get_lora_by_filename(value['lora'], log_node=NODE_NAME)
+                    if model is not None and lora is not None:
+                        model, clip = LoraLoader().load_lora(
+                            model, clip, lora, strength_model, strength_clip
+                        )
+
+            # ── String payload (wired-in filename from a subgraph connection) ─
+            elif isinstance(value, str) and value and value != "None":
+                lora = get_lora_by_filename(value, log_node=NODE_NAME)
+                if model is not None and lora is not None:
+                    # Default to strength 1.0 for both when wired externally.
+                    # If the user also has a strength companion kwarg in future
+                    # widget designs, it could be read here.
+                    strength_model = 1.0
+                    strength_clip  = 0.0 if clip is None else 1.0
+                    model, clip = LoraLoader().load_lora(
+                        model, clip, lora, strength_model, strength_clip
+                    )
 
         return (model, clip)
 
