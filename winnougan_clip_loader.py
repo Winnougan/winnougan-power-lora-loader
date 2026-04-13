@@ -148,6 +148,25 @@ def _dtype_model_options(dtype_str):
     return _map.get(dtype_str, {})
 
 
+def _resolve_clip_type(clip_type_str):
+    """Convert a clip_type string to a comfy.sd.CLIPType enum value.
+
+    Raises a clear RuntimeError instead of silently falling back to
+    STABLE_DIFFUSION when the type is not recognised — a silent fallback
+    loads the wrong encoder and produces garbage conditioning tensors.
+    """
+    key = clip_type_str.upper()
+    val = getattr(comfy.sd.CLIPType, key, None)
+    if val is None:
+        available = [e.name.lower() for e in comfy.sd.CLIPType]
+        raise RuntimeError(
+            f"[{NODE_NAME}] Unknown clip_type '{clip_type_str}'. "
+            f"Your ComfyUI build supports: {available}. "
+            "Update ComfyUI or choose the closest matching type."
+        )
+    return val
+
+
 def _load_one_clip(name, clip_type, dtype_str):
     """Load a single CLIP model, handling GGUF and all dtype variants."""
     is_gguf = name.lower().endswith(".gguf")
@@ -169,10 +188,11 @@ def _load_one_clip(name, clip_type, dtype_str):
         raise FileNotFoundError(f"[{NODE_NAME}] Cannot find CLIP: {name}")
 
     model_options = _dtype_model_options(dtype_str)
+    resolved_type = _resolve_clip_type(clip_type)
     clip = comfy.sd.load_clip(
         ckpt_paths   = [path],
         embedding_directory = folder_paths.get_folder_paths("embeddings"),
-        clip_type    = getattr(comfy.sd.CLIPType, clip_type.upper(), comfy.sd.CLIPType.STABLE_DIFFUSION),
+        clip_type    = resolved_type,
         model_options= model_options,
     )
     log.info(f"[{NODE_NAME}] Loaded CLIP: {name} [{dtype_str}]")
@@ -187,7 +207,7 @@ class WinnouganCLIPLoader:
 
     # CLIP type options mirroring ComfyUI's standard loader
     CLIP_TYPES = ["stable_diffusion", "stable_cascade", "sd3", "stable_audio",
-                  "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan",
+                  "mochi", "ltxv", "pixart", "cosmos", "anima", "lumina2", "wan",
                   "hidream", "chroma", "ace",
                   "qwen_image", "flux2", "ovis", "longcat_image"]
 
@@ -253,7 +273,7 @@ class WinnouganCLIPLoader:
         clip = comfy.sd.load_clip(
             ckpt_paths          = [path1, path2],
             embedding_directory = folder_paths.get_folder_paths("embeddings"),
-            clip_type           = getattr(comfy.sd.CLIPType, clip_type_1.upper(), comfy.sd.CLIPType.STABLE_DIFFUSION),
+            clip_type           = _resolve_clip_type(clip_type_1),
             model_options       = model_options,
         )
         log.info(f"[{NODE_NAME}] Loaded dual CLIP: {clip_name_1} + {clip_name_2}")

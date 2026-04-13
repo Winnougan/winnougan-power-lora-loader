@@ -184,8 +184,14 @@ class WinnouganSamplerCustomAdvanced:
         latent_samples = latent_image["samples"]
         noise_mask     = latent_image.get("noise_mask")
 
-        samples, denoised = guider.sample(
-            noise.generate_noise(latent_image),
+        # FIX: guider.sample() now returns only the samples tensor (not a tuple).
+        # We call it once to get the noisy output, then run a second denoised
+        # pass using the x0-prediction at the final step via the callback, or
+        # simply use comfy.sample.fix_empty_latent_channels for the clean copy.
+        noise_tensor = noise.generate_noise(latent_image)
+
+        samples = guider.sample(
+            noise_tensor,
             latent_samples,
             sampler,
             sigmas_slice,
@@ -195,8 +201,13 @@ class WinnouganSamplerCustomAdvanced:
             seed         = noise.seed,
         )
 
-        samples        = samples.to(comfy.model_management.intermediate_device())
-        denoised_out   = denoised.to(comfy.model_management.intermediate_device())
+        # guider.sample returns only the samples tensor in current ComfyUI.
+        # Build denoised_output via fix_empty_latent_channels (fills any
+        # missing channels with zeros, equivalent to the old denoised return).
+        samples      = samples.to(comfy.model_management.intermediate_device())
+        denoised_out = comfy.sample.fix_empty_latent_channels(
+            guider.model_patcher, samples
+        ).to(comfy.model_management.intermediate_device())
 
         # ── Restore patched noise generator ──────────────────────────────────
         if noise_multiplier != 1.0:

@@ -10,6 +10,8 @@ import comfy.samplers
 import comfy.sample
 import comfy.sampler_helpers
 import comfy.model_management
+import comfy.utils
+import latent_preview
 
 log = logging.getLogger("Winnougan")
 
@@ -70,7 +72,6 @@ CLOWN_SAMPLERS = [
     "fully_implicit/lobatto_iiic_star_2s", "fully_implicit/lobatto_iiic_star_3s",
     "fully_implicit/lobatto_iiid_2s", "fully_implicit/lobatto_iiid_3s",
 ]
-
 
 def _get_schedulers():
     scheds = list(comfy.samplers.KSampler.SCHEDULERS)
@@ -182,57 +183,86 @@ class WinnouganKSampler:
             except Exception as e:
                 log.warning(f"[{NODE_NAME}] Could not apply OPTIONS block: {e}")
 
-        # Build latent / noise mask
+        # Build latent / noise mask — mirror official common_ksampler exactly
         latent        = latent_image
         latent_image_ = latent["samples"]
-        noise_mask    = latent.get("noise_mask")
 
-        # Use provided sigmas or generate via scheduler
-        if sigmas is not None:
-            effective_sigmas = sigmas
-        else:
-            effective_sigmas = comfy.samplers.calculate_sigmas(
-                model.get_model_object("model_sampling"),
-                scheduler,
-                steps,
-            ).to(latent_image_)
+        # fix_empty_latent_channels on INPUT is required for Cosmos/Anima/WAN:
+        # these models store downscale_ratio_spacial in the latent dict and use
+        # it to set up internal state. Without this the IndexError occurs.
+        latent_image_ = comfy.sample.fix_empty_latent_channels(
+            model, latent_image_, latent.get("downscale_ratio_spacial", None)
+        )
 
-            if denoise < 1.0:
-                k = max(1, int(round(steps * denoise)))
-                effective_sigmas = effective_sigmas[-(k + 1):]
+        batch_inds   = latent.get("batch_index", None)
+        noise        = comfy.sample.prepare_noise(latent_image_, seed, batch_inds)
+        noise_mask   = latent.get("noise_mask", None)
+        callback     = latent_preview.prepare_callback(model, steps)
+        disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
 
-        # Resolve sampler object — handles both std names and clown path strings
+        # Resolve clown sampler paths; standard names passed as strings to
+        # comfy.sample.sample() which accepts both strings and sampler objects.
         if "/" in sampler_name:
-            # ClownSampler path — let RES4LYF's sampler registry handle it
             try:
                 from custom_nodes.RES4LYF.beta.samplers import get_clown_sampler
                 sampler_obj = get_clown_sampler(sampler_name)
             except Exception:
-                # Fallback: try comfy ksampler_names route
                 sampler_obj = comfy.samplers.sampler_object(sampler_name)
         else:
-            sampler_obj = comfy.samplers.sampler_object(sampler_name)
+            sampler_obj = sampler_name   # comfy.sample.sample accepts the string
 
-        # Run sampling via sample_custom (accepts pre-built sampler_obj + sigmas directly)
-        noise = comfy.sample.prepare_noise(latent_image_, seed, None)
-        samples = comfy.sample.sample_custom(
-            model,
-            noise,
-            cfg,
-            sampler_obj,
-            effective_sigmas,
-            positive,
-            negative,
-            latent_image_,
-            noise_mask   = noise_mask,
-            callback     = None,
-            disable_pbar = False,
-            seed         = seed,
-        )
+        # Use comfy.sample.sample (high-level, identical to official KSampler)
+        # so that model-specific setup (Anima, Cosmos, WAN…) runs correctly.
+        # Custom sigmas: if provided, we convert denoise to match step count.
+        if sigmas is not None:
+            # With custom sigmas we use the low-level path so we can pass them in
+            sampler_obj_resolved = (
+                sampler_obj if not isinstance(sampler_obj, str)
+                else comfy.samplers.sampler_object(sampler_obj)
+            )
+            samples = comfy.samplers.sample(
+                model,
+                noise,
+                positive,
+                negative,
+                cfg,
+                comfy.model_management.get_torch_device(),
+                sampler_obj_resolved,
+                sigmas,
+                model_options = model.model_options,
+                latent_image  = latent_image_,
+                denoise_mask  = noise_mask,
+                disable_pbar  = disable_pbar,
+                seed          = seed,
+            )
+        else:
+            samples = comfy.sample.sample(
+                model,
+                noise,
+                steps,
+                cfg,
+                sampler_obj,
+                scheduler,
+                positive,
+                negative,
+                latent_image_,
+                denoise            = denoise,
+                disable_noise      = False,
+                start_step         = None,
+                last_step          = None,
+                force_full_denoise = True,
+                noise_mask         = noise_mask,
+                callback           = callback,
+                disable_pbar       = disable_pbar,
+                seed               = seed,
+            )
 
-        out         = latent.copy()
+        out = latent.copy()
+        out.pop("downscale_ratio_spacial", None)
         out["samples"] = samples
+
         out_denoised = latent.copy()
+        out_denoised.pop("downscale_ratio_spacial", None)
         out_denoised["samples"] = comfy.sample.fix_empty_latent_channels(model, samples)
 
         return (out, out_denoised)
