@@ -368,7 +368,7 @@ function drawRoundedRect(ctx, x, y, w, h, r = 5) {
 }
 
 function drawToggle(ctx, x, y, h, value) {
-  const tw = 28, th = h * 0.55;
+  const tw = 22, th = h * 0.60;
   const tx = x + 4, ty = y + (h - th) / 2;
   const r  = th / 2;
   ctx.beginPath();
@@ -397,14 +397,14 @@ function drawArrowButton(ctx, x, y, w, h, dir) {
 }
 
 function drawStrengthWidget(ctx, posX, posY, h, value, direction = -1) {
-  const bw = 18, vw = 50;
+  const bw = 14, vw = 42;
   const totalW = bw + vw + bw;
   const startX = direction < 0 ? posX - totalW : posX;
   drawArrowButton(ctx, startX, posY, bw, h, -1);
   ctx.fillStyle = LiteGraph.WIDGET_BGCOLOR ?? "#333";
   ctx.fillRect(startX + bw, posY + h * 0.1, vw, h * 0.8);
   ctx.fillStyle    = LiteGraph.WIDGET_TEXT_COLOR ?? "#eee";
-  ctx.font         = `bold ${h * 0.38}px monospace`;
+  ctx.font         = `bold ${h * 0.55}px monospace`;
   ctx.textAlign    = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(Number(value).toFixed(2), startX + bw + vw / 2, posY + h / 2);
@@ -420,7 +420,7 @@ function fitString(ctx, str, maxWidth) {
 
 // ── Row height constant ───────────────────────────────────────────────────────
 
-const ROW_HEIGHT = 48; // tall rows, rgthree-style
+const ROW_HEIGHT = 24; // compact rows matching rgthree
 
 // ── Global toggle header widget ───────────────────────────────────────────────
 
@@ -449,11 +449,12 @@ class GlobalToggleWidget {
     this.hitArea = { x: tX, y: posY, w: tW + 4, h: height };
 
     ctx.fillStyle    = "#5a8a5a";
-    ctx.font         = `bold 10px sans-serif`;
+    ctx.font         = `bold 9px sans-serif`;
     ctx.textAlign    = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText("TOGGLE ALL", margin + tW + 6, midY);
-
+    ctx.fillText("Toggle All", margin + tW + 6, midY);
+    ctx.textAlign = "right";
+    ctx.fillText("Strength", widgetWidth - margin - 4, midY);
     ctx.restore();
   }
 
@@ -504,19 +505,10 @@ class PowerLoraWidget {
     const isConnected = inputIdx !== -1 && node.inputs[inputIdx]?.link != null;
 
     ctx.save();
-    drawRoundedRect(ctx, margin, posY, widgetWidth - margin * 2, height - 1);
 
     const [tX, tW] = drawToggle(ctx, margin + 4, posY, height, this._value.on);
     this.hitAreas.toggle = { x: tX, y: posY, w: tW + 4, h: height };
     let posX = margin + 4 + tW + im;
-
-    // "lora" label after toggle
-    ctx.fillStyle    = "#5a8a5a";
-    ctx.font         = `bold ${height * 0.28}px sans-serif`;
-    ctx.textAlign    = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText("lora", posX, midY);
-    posX += ctx.measureText("lora").width + im * 2;
 
     if (lowQ) { ctx.restore(); return; }
 
@@ -535,25 +527,18 @@ class PowerLoraWidget {
     const [sx, sw] = drawStrengthWidget(ctx, rposX, posY, height, this._value.strength ?? 1);
     this.hitAreas.strength = { x: sx, y: posY, w: sw, h: height };
 
-    // "strength" label to the left of the strength widget
-    ctx.fillStyle    = "#5a8a5a";
-    ctx.font         = `bold ${height * 0.30}px sans-serif`;
-    ctx.textAlign    = "right";
-    ctx.textBaseline = "middle";
-    ctx.fillText("str", sx - im, midY);
-
-    rposX = sx - im - ctx.measureText("str").width - im;
+    rposX = sx - im;
 
     const loraW = rposX - posX - im;
 
     if (isConnected) {
       ctx.textAlign = "left";
-      ctx.font      = `italic ${height * 0.38}px sans-serif`;
+      ctx.font      = `italic ${height * 0.55}px sans-serif`;
       ctx.fillStyle = "#7dffb3";
       ctx.fillText("⟶ (connected)", posX, midY);
     } else {
       ctx.textAlign = "left";
-      ctx.font      = `${height * 0.40}px sans-serif`;
+      ctx.font      = `${height * 0.55}px sans-serif`;
       const label   = this._value.lora || "None";
       ctx.fillText(fitString(ctx, label, loraW), posX, midY);
     }
@@ -678,7 +663,7 @@ app.registerExtension({
       this.widgets ??= [];
       this.widgets.push(new GlobalToggleWidget());
 
-      this.size = [460, 80];
+      this.size = [340, 60];
     };
 
     // ── Compact input slot positions ─────────────────────────────────────────
@@ -761,10 +746,10 @@ app.registerExtension({
       const rows    = this._loraWidgets().length;
       const slotH   = LiteGraph.NODE_SLOT_HEIGHT ?? 20;
       const nSlots  = Math.max((this.inputs?.length ?? 0), (this.outputs?.length ?? 0));
-      const needed  = slotH * nSlots + 6  // slot rows
-                    + 22 + 4              // global toggle + gap
+      const needed  = slotH * nSlots + 4  // slot rows
+                    + 18 + 2              // global toggle + gap
                     + rows * ROW_HEIGHT   // lora rows (zero gap between)
-                    + 42;                 // Add Lora button + bottom pad
+                    + 32;                 // Add Lora button + bottom pad
       this.size[1] = needed;
     };
 
@@ -801,8 +786,8 @@ app.registerExtension({
             if (widget.hidden) continue;
             const isLora   = widget.name?.startsWith("lora_");
             const isToggle = widget.name === "__global_toggle__";
-            const rowH     = isLora ? ROW_HEIGHT : (isToggle ? 22 : 20);
-            const gap      = isToggle ? 4 : 0; // small gap after toggle header only
+            const rowH     = isLora ? ROW_HEIGHT : (isToggle ? 18 : 18);
+            const gap      = isToggle ? 2 : 0; // tiny gap after header only
             widget.last_y  = y;
             if (widget.draw) widget.draw(ctx, this, W, y, rowH);
             y += rowH + gap;
@@ -829,7 +814,7 @@ app.registerExtension({
 
       // ── "Add Lora" button at the bottom ───────────────────────────────────
       const w = this.size[0], h = this.size[1];
-      const margin = 10, btnH = 26;
+      const margin = 8, btnH = 20;
       const btnY = (this._widgetsBottomY ?? (h - btnH - 8 - 8)) + 4;
 
       ctx.save();
@@ -958,7 +943,7 @@ app.registerExtension({
         if (v && typeof v.lora !== "undefined") this.addLoraRow(v);
       }
       this.size[1] = Math.max(
-        (() => { const s = LiteGraph.NODE_SLOT_HEIGHT ?? 20; const n = Math.max((this.inputs?.length??0),(this.outputs?.length??0)); return s*n+6+22+4+this._loraWidgets().length*ROW_HEIGHT+42; })(),
+        (() => { const s = LiteGraph.NODE_SLOT_HEIGHT ?? 20; const n = Math.max((this.inputs?.length??0),(this.outputs?.length??0)); return s*n+4+18+2+this._loraWidgets().length*ROW_HEIGHT+32; })(),
         this.size[1] ?? 100
       );
     };
@@ -968,7 +953,7 @@ app.registerExtension({
       const slotH  = LiteGraph.NODE_SLOT_HEIGHT ?? 20;
       const nSlots = Math.max((this.inputs?.length ?? 0), (this.outputs?.length ?? 0));
       const h      = slotH * nSlots + 6 + 22 + 4 + rows * ROW_HEIGHT + 42;
-      return [460, h];
+      return [340, h];
     };
   },
 });

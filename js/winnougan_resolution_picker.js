@@ -407,7 +407,7 @@ app.registerExtension({
       this._customHeight = 1024;
       this._batchSize    = 1;
 
-      this.size = [300, 240];
+      this.size = [310, 160];
     };
 
     // ── Sync widget values and serialize ─────────────────────────────────
@@ -473,10 +473,10 @@ app.registerExtension({
       const pad = 14;
       const iw  = W - pad * 2;
 
-      const modeY    = TH + 42;
-      const modeH    = 28;
-      const halfIw   = (iw - 8) / 2;
-      const contentY = modeY + modeH + 16;
+      const modeY    = TH + 26;
+      const modeH    = 20;
+      const halfIw   = (iw - 6) / 2;
+      const contentY = modeY + modeH + 8;
 
       return { TH, W, pad, iw, modeY, modeH, halfIw, contentY };
     };
@@ -498,7 +498,7 @@ app.registerExtension({
       ctx.fillStyle = "#4ade80"; ctx.shadowColor = "#4ade80";
       const _t = Date.now()/1000;
       ctx.shadowBlur = 6 + (0.5 + 0.5*Math.sin(_t*(2*Math.PI/3))) * 4;
-      ctx.fillText("⚡ WINNOUGAN", this.size[0] - 28, 14);
+      ctx.fillText("⚡ WINNOUGAN", this.size[0] - 82, 14);
       ctx.restore();
 
       const { TH, W, pad, iw, modeY, modeH, halfIw, contentY } = this._layout();
@@ -513,7 +513,7 @@ app.registerExtension({
           active ? "#2a5a2a" : "#151f15",
           active ? "#5aaf5a" : "#2a3a2a");
         ctx.fillStyle    = active ? "#cfffcf" : "#4a7a4a";
-        ctx.font         = "bold 12px sans-serif";
+        ctx.font         = "bold 10px sans-serif";
         ctx.textAlign    = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(
@@ -525,44 +525,33 @@ app.registerExtension({
       if (this._mode === "preset") {
         // ── Preset button ──────────────────────────────────────────────
         const preset = REAL_PRESETS.find(p => p.label === this._presetLabel) ?? REAL_PRESETS[0];
-        const btnH   = 52;
+        const btnH   = 32;
 
-        roundRect(ctx, pad, contentY, iw, btnH, 7, "#0d1a0d", "#3a6a3a");
+        roundRect(ctx, pad, contentY, iw, btnH, 5, "#0d1a0d", "#3a6a3a");
 
-        // Aspect ratio thumbnail
+        // Aspect ratio thumbnail — compact
         const aspect = preset.w / preset.h;
         let tw, th;
-        if (aspect >= 1) { tw = 32; th = Math.max(5, Math.round(32 / aspect)); }
-        else             { th = 32; tw = Math.max(5, Math.round(32 * aspect)); }
-        const tx = pad + 14;
+        if (aspect >= 1) { tw = 20; th = Math.max(4, Math.round(20 / aspect)); }
+        else             { th = 20; tw = Math.max(4, Math.round(20 * aspect)); }
+        const tx = pad + 8;
         const ty = contentY + (btnH - th) / 2;
         roundRect(ctx, tx, ty, tw, th, 1, "#2a5a2a", "#5aaf5a", 0.8);
 
-        // Labels
+        // Resolution + latent inline
         ctx.textAlign    = "left";
         ctx.textBaseline = "middle";
         ctx.fillStyle    = "#e0e0e0";
-        ctx.font         = "bold 13px sans-serif";
-        ctx.fillText(preset.label, tx + tw + 14, contentY + btnH / 2 - 9);
-        ctx.fillStyle = "#5a9a5a";
-        ctx.font      = "11px sans-serif";
-        ctx.fillText(preset.sub, tx + tw + 14, contentY + btnH / 2 + 9);
+        ctx.font         = "bold 11px sans-serif";
+        ctx.fillText(preset.label, tx + tw + 8, contentY + btnH / 2 - 7);
+        ctx.fillStyle = "#3a6a3a";
+        ctx.font      = "9px monospace";
+        ctx.fillText(`latent ${preset.w / 8}×${preset.h / 8}`, tx + tw + 8, contentY + btnH / 2 + 7);
 
-        // Chevron
         ctx.fillStyle = "#4a7a4a";
-        ctx.font      = "13px sans-serif";
+        ctx.font      = "11px sans-serif";
         ctx.textAlign = "right";
-        ctx.fillText("▼", pad + iw - 12, contentY + btnH / 2);
-
-        // Latent summary
-        ctx.fillStyle    = "#3a6a3a";
-        ctx.font         = "11px monospace";
-        ctx.textAlign    = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(
-          `latent  ${preset.w / 8} × ${preset.h / 8}`,
-          W / 2, contentY + btnH + 20
-        );
+        ctx.fillText("▼", pad + iw - 8, contentY + btnH / 2);
 
         this._presetBtnBounds = { x: pad, y: contentY, w: iw, h: btnH };
 
@@ -570,8 +559,8 @@ app.registerExtension({
         // ── Custom rows ────────────────────────────────────────────────
         this._presetBtnBounds = null;
 
-        const rowH  = 36;
-        const gap   = 22;
+        const rowH  = 26;
+        const gap   = 10;
         const wRowY = contentY;
         const hRowY = contentY + rowH + gap;
 
@@ -579,12 +568,12 @@ app.registerExtension({
         this._drawDimRow(ctx, "HEIGHT", this._customHeight, pad, hRowY, iw, rowH);
 
         ctx.fillStyle    = "#3a6a3a";
-        ctx.font         = "11px monospace";
+        ctx.font         = "9px monospace";
         ctx.textAlign    = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(
-          `latent  ${Math.floor(this._customWidth / 8)} × ${Math.floor(this._customHeight / 8)}`,
-          W / 2, hRowY + rowH + 20
+          `latent ${Math.floor(this._customWidth / 8)}×${Math.floor(this._customHeight / 8)}`,
+          W / 2, hRowY + rowH + 10
         );
 
         this._dimRows = {
@@ -597,10 +586,10 @@ app.registerExtension({
     };
 
     nodeType.prototype._drawDimRow = function (ctx, labelText, value, x, y, iw, rowH) {
-      const btnW = 34;
-      const valW = iw - btnW * 2 - 8;
-      const valX = x + btnW + 4;
-      const btnRX = valX + valW + 4;
+      const btnW = 24;
+      const valW = iw - btnW * 2 - 6;
+      const valX = x + btnW + 3;
+      const btnRX = valX + valW + 3;
       const midY = y + rowH / 2;
 
       // Label
@@ -608,28 +597,28 @@ app.registerExtension({
       ctx.font         = "bold 10px sans-serif";
       ctx.textAlign    = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(labelText, x, y - 9);
+      ctx.fillText(labelText, x, y - 6);
 
       // Dec
-      roundRect(ctx, x, y, btnW, rowH, 5, "#151f15", "#2a4a2a");
+      roundRect(ctx, x, y, btnW, rowH, 4, "#151f15", "#2a4a2a");
       ctx.fillStyle    = "#7acc7a";
-      ctx.font         = "bold 18px sans-serif";
+      ctx.font         = "bold 14px sans-serif";
       ctx.textAlign    = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("−", x + btnW / 2, midY);
 
       // Value box
-      roundRect(ctx, valX, y, valW, rowH, 5, "#0d1a0d", "#2a4a2a");
+      roundRect(ctx, valX, y, valW, rowH, 4, "#0d1a0d", "#2a4a2a");
       ctx.fillStyle    = "#e8e8e8";
-      ctx.font         = "bold 15px monospace";
+      ctx.font         = "bold 12px monospace";
       ctx.textAlign    = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(String(value), valX + valW / 2, midY);
 
       // Inc
-      roundRect(ctx, btnRX, y, btnW, rowH, 5, "#151f15", "#2a4a2a");
+      roundRect(ctx, btnRX, y, btnW, rowH, 4, "#151f15", "#2a4a2a");
       ctx.fillStyle    = "#7acc7a";
-      ctx.font         = "bold 18px sans-serif";
+      ctx.font         = "bold 14px sans-serif";
       ctx.textAlign    = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("+", btnRX + btnW / 2, midY);
@@ -664,10 +653,10 @@ app.registerExtension({
 
       // Custom rows
       if (this._mode === "custom" && this._dimRows) {
-        const btnW  = 34;
-        const valW  = iw - btnW * 2 - 8;
-        const valX  = pad + btnW + 4;
-        const btnRX = valX + valW + 4;
+        const btnW  = 24;
+        const valW  = iw - btnW * 2 - 6;
+        const valX  = pad + btnW + 3;
+        const btnRX = valX + valW + 3;
 
         for (const [dim, row] of Object.entries(this._dimRows)) {
           const { x, y, h } = row;
@@ -704,7 +693,7 @@ app.registerExtension({
     };
 
     nodeType.prototype.computeSize = function () {
-      return [300, this._mode === "custom" ? 260 : 240];
+      return [310, this._mode === "custom" ? 165 : 140];
     };
   },
 });
