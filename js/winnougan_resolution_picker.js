@@ -415,12 +415,17 @@ app.registerExtension({
     // ComfyUI's prompt builder picks up the correct w/h/batch_size.
     nodeType.prototype._syncWidgetValues = function () {
       const { w, h } = this._resolvedDims();
+      // Only sync if the input is NOT connected from outside (subgraph / reroute)
+      const isConnected = (name) => {
+        const slot = this.inputs?.find(inp => inp.name === name);
+        return slot && slot.link !== null && slot.link !== undefined;
+      };
       const widgetW = this.widgets?.find(ww => ww.name === "width");
       const widgetH = this.widgets?.find(ww => ww.name === "height");
       const widgetB = this.widgets?.find(ww => ww.name === "batch_size");
-      if (widgetW) widgetW.value = w;
-      if (widgetH) widgetH.value = h;
-      if (widgetB) widgetB.value = this._batchSize;
+      if (widgetW && !isConnected("width"))      widgetW.value = w;
+      if (widgetH && !isConnected("height"))     widgetH.value = h;
+      if (widgetB)                               widgetB.value = this._batchSize;
     };
 
     nodeType.prototype.onSerialize = function (o) {
